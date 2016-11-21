@@ -1,0 +1,74 @@
+---
+title: "Activity Prediction"
+author: "tbroiles"
+date: "November 15, 2016"
+output: html_document
+---
+#Introduction
+We have created a model to predict activity from accelerometer data.  Data used for this analysis was obtained from the Groupware research group (http://groupware.les.inf.puc-rio.br/har).  We have set RStudio's seed to 80085, and this value is unchanged throughout our methodology.  Our model uses the Random Forest technique to predict activity type.  Random Forest was chosen because it does particularly well with non-linear relationships.
+
+```{r}
+set.seed(80085)
+library(caret)
+library(rpart)
+library(randomForest)
+```
+
+#Reading in the data
+
+As previously mentioned, the data originates from Groupware.  For this analysis, we have read in their training and testing dataset.  However, we are using the training data for training and testing.  The testing dataset is actually only used as a final validation quiz.  The output of this quiz was fed into the Coursera quiz at the end of this project.
+
+The training data was read in, replacing all "", NA, and #DIV/0! values with 0.  This was done under the assumption that these values were not available because a specific sensor wasn't being used.  We broke the Groupware training dataset into our training and testing dataset using the "createDataPartition" function.  The partition was broken up as 70% training and 30% testing data.  Addtionally, we removed the first 8 columns of the datasets, because they had to do with timestamps, and nothing to do with sensor output.
+
+```{r, cache=T}
+
+f = '/Users/tbroiles/Dropbox/Coursera/Data_Science_Certification/Practical Machine Learning/Course Project/PML_Training.txt'
+
+f_quiz = '/Users/tbroiles/Dropbox/Coursera/Data_Science_Certification/Practical Machine Learning/Course Project/PML_Testing.txt'
+
+data <- read.csv(f, sep= ',', header = T, na.strings = c("NA","","#DIV/0!"))
+data[is.na(data)] <- 0
+data <- data[colnames(data)[-(1:8)]]
+
+inTrain <- createDataPartition(y=data$classe, p = 0.7, list = F)
+
+training <- data[inTrain,]
+testing <- data[-inTrain,]
+
+quizing <- read.csv(f_quiz, sep= ',', header = T, na.strings = c("NA","","#DIV/0!"))
+quizing[is.na(quizing)] <- 0
+quizing <- quizing[colnames(quizing)[-(1:8)]]
+```
+
+# Our mighty forest (of 7 trees)
+
+We created a random forest of the data, but only included 7 trees in our model.  The small forest size was done to reduce the time needed for training our model, but the end result shows that our technique was still effective.  No preprocessing was performed, because all NA values were previously set to 0.
+
+```{r, cache=T}
+
+rf_model = train(classe~., method = 'rf', ntree = 7, data = training)#, preProcess = 'medianImpute', na.action = na.pass)
+
+```
+
+# Accuracy with our training dataset
+
+Our accuracy with our training dataset (i.e., 70% of the original training set) was 99.5%. We consider this accuracy to be very good for a simple random forest with only 7 trees.
+
+
+```{r, echo=F}
+confusionMatrix(predict(rf_model, training),training$classe)
+```
+
+# Accuracy with our testing dataset
+
+Our accuracy with our training dataset (i.e., remaining 30% of the original training set) was 98.66%. As expected, the out of sample error was slightly higher than with the training dataset, but we still consider the accuracy to be good.  Moreover, we consider it sufficient for our application.
+
+```{r, echo=F}
+confusionMatrix(predict(rf_model, testing),testing$classe)
+```
+
+# Predictions for the quizzing dataset
+
+```{r}
+predict(rf_model, quizing)
+```
